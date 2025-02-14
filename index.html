@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Digital Business Card Exchange</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    .card-form input, .card-form button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      box-sizing: border-box;
+    }
+    .card {
+      border: 1px solid #ddd;
+      background: #fafafa;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Digital Business Card Exchange</h1>
+    <div class="card-form">
+      <h2>Create a New Business Card</h2>
+      <input type="text" id="name" placeholder="Name" required>
+      <input type="email" id="email" placeholder="Email" required>
+      <input type="text" id="phone" placeholder="Phone" required>
+      <input type="text" id="company" placeholder="Company" required>
+      <input type="text" id="position" placeholder="Position" required>
+      <button onclick="createCard()">Submit</button>
+    </div>
+    <hr>
+    <div class="card-list">
+      <h2>Your Business Cards</h2>
+      <div id="cards"></div>
+    </div>
+  </div>
+  
+  <!-- Include ethers.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+  <script>
+    // Replace with your deployed contract address on Sepolia:
+    const contractAddress = "0xYourContractAddress";
+    
+    // ABI for the smart contract functions
+    const contractABI = [
+      "function createCard(string _name, string _email, string _phone, string _company, string _position) public",
+      "function getOwnerCards(address _owner) public view returns (uint256[])",
+      "function cards(uint256) public view returns (string name, string email, string phone, string company, string position, address owner, uint256 timestamp)"
+    ];
+
+    let provider, signer, contract;
+
+    // Initialize the connection to the Ethereum network via MetaMask
+    async function init() {
+      if (window.ethereum) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        contract = new ethers.Contract(contractAddress, contractABI, signer);
+        loadCards();
+      } else {
+        alert("MetaMask is not installed. Please install it to use this app.");
+      }
+    }
+
+    // Function to create a new business card on the blockchain
+    async function createCard() {
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const phone = document.getElementById("phone").value;
+      const company = document.getElementById("company").value;
+      const position = document.getElementById("position").value;
+
+      try {
+        const tx = await contract.createCard(name, email, phone, company, position);
+        await tx.wait();
+        alert("Business Card Created Successfully!");
+        loadCards();
+      } catch (error) {
+        console.error(error);
+        alert("Error creating card. Check console for details.");
+      }
+    }
+
+    // Function to load and display the user's business cards from the blockchain
+    async function loadCards() {
+      const cardsDiv = document.getElementById("cards");
+      cardsDiv.innerHTML = "";
+      try {
+        const userAddress = await signer.getAddress();
+        const cardIds = await contract.getOwnerCards(userAddress);
+        for (let i = 0; i < cardIds.length; i++) {
+          const card = await contract.cards(cardIds[i]);
+          const cardElement = document.createElement("div");
+          cardElement.className = "card";
+          cardElement.innerHTML = `
+            <strong>Name:</strong> ${card.name} <br>
+            <strong>Email:</strong> ${card.email} <br>
+            <strong>Phone:</strong> ${card.phone} <br>
+            <strong>Company:</strong> ${card.company} <br>
+            <strong>Position:</strong> ${card.position} <br>
+            <strong>Created:</strong> ${new Date(card.timestamp * 1000).toLocaleString()} <br>
+          `;
+          cardsDiv.appendChild(cardElement);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    // Initialize the app when the page loads
+    window.addEventListener("load", init);
+  </script>
+</body>
+</html>
