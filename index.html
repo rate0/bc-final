@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Digital Business Card Exchange</title>
+  <title>Обмен цифровыми визитками</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f4f4f4;
+      margin: 0;
       padding: 20px;
     }
     .container {
@@ -36,30 +37,30 @@
 </head>
 <body>
   <div class="container">
-    <h1>Digital Business Card Exchange</h1>
+    <h1>Обмен цифровыми визитками</h1>
     <div class="card-form">
-      <h2>Create a New Business Card</h2>
-      <input type="text" id="name" placeholder="Name" required>
+      <h2>Создать новую визитку</h2>
+      <input type="text" id="name" placeholder="Имя" required>
       <input type="email" id="email" placeholder="Email" required>
-      <input type="text" id="phone" placeholder="Phone" required>
-      <input type="text" id="company" placeholder="Company" required>
-      <input type="text" id="position" placeholder="Position" required>
-      <button onclick="createCard()">Submit</button>
+      <input type="text" id="phone" placeholder="Телефон" required>
+      <input type="text" id="company" placeholder="Компания" required>
+      <input type="text" id="position" placeholder="Должность" required>
+      <button onclick="createCard()">Отправить</button>
     </div>
     <hr>
     <div class="card-list">
-      <h2>Your Business Cards</h2>
+      <h2>Ваши визитки</h2>
       <div id="cards"></div>
     </div>
   </div>
   
-  <!-- Include ethers.js from CDN -->
+  <!-- Подключаем ethers.js из CDN -->
   <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
   <script>
-    // Updated contract address from the deployment on Sepolia:
+    // Укажите здесь реальный адрес вашего контракта, взятый с Etherscan (Sepolia)
     const contractAddress = "0xc44fd279751c3c52ca49126690e22d6d6879a969";
-    
-    // ABI for the smart contract functions
+
+    // ABI (описание функций контракта)
     const contractABI = [
       "function createCard(string _name, string _email, string _phone, string _company, string _position) public",
       "function getOwnerCards(address _owner) public view returns (uint256[])",
@@ -68,65 +69,99 @@
 
     let provider, signer, contract;
 
-    // Initialize the connection to the Ethereum network via MetaMask
+    // Инициализация приложения при загрузке страницы
     async function init() {
-      if (window.ethereum) {
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        signer = provider.getSigner();
-        contract = new ethers.Contract(contractAddress, contractABI, signer);
-        loadCards();
+      // Проверяем, установлен ли MetaMask (window.ethereum)
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          // Создаём провайдер на базе MetaMask
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          // Запрашиваем доступ к аккаунтам пользователя
+          await provider.send("eth_requestAccounts", []);
+          // Получаем «signer» (подписант), чтобы отправлять транзакции
+          signer = provider.getSigner();
+
+          // Инициализируем контракт
+          contract = new ethers.Contract(contractAddress, contractABI, signer);
+
+          // Загружаем визитки пользователя
+          await loadCards();
+        } catch (error) {
+          console.error("Ошибка при инициализации:", error);
+          alert("Ошибка при подключении MetaMask. Проверьте консоль.");
+        }
       } else {
-        alert("MetaMask is not installed. Please install it to use this app.");
+        alert("MetaMask не установлен. Установите расширение, чтобы использовать приложение.");
       }
     }
 
-    // Function to create a new business card on the blockchain
+    // Функция для создания новой визитки
     async function createCard() {
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
-      const phone = document.getElementById("phone").value;
-      const company = document.getElementById("company").value;
-      const position = document.getElementById("position").value;
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const company = document.getElementById("company").value.trim();
+      const position = document.getElementById("position").value.trim();
+
+      // Проверяем, заполнены ли поля
+      if (!name || !email || !phone || !company || !position) {
+        alert("Пожалуйста, заполните все поля.");
+        return;
+      }
 
       try {
+        // Вызываем метод контракта createCard
         const tx = await contract.createCard(name, email, phone, company, position);
-        await tx.wait();
-        alert("Business Card Created Successfully!");
-        loadCards();
+        await tx.wait(); // Ждём подтверждения транзакции
+        alert("Визитка успешно создана!");
+
+        // Очищаем поля формы
+        document.getElementById("name").value = "";
+        document.getElementById("email").value = "";
+        document.getElementById("phone").value = "";
+        document.getElementById("company").value = "";
+        document.getElementById("position").value = "";
+
+        // Обновляем список визиток
+        await loadCards();
       } catch (error) {
-        console.error(error);
-        alert("Error creating card. Check console for details.");
+        console.error("Ошибка при создании визитки:", error);
+        alert("Ошибка при создании визитки. Подробности в консоли браузера.");
       }
     }
 
-    // Function to load and display the user's business cards from the blockchain
+    // Функция для загрузки и отображения визиток
     async function loadCards() {
       const cardsDiv = document.getElementById("cards");
-      cardsDiv.innerHTML = "";
+      cardsDiv.innerHTML = ""; // Очищаем предыдущие записи
+
       try {
         const userAddress = await signer.getAddress();
+        // Получаем список ID визиток, принадлежащих пользователю
         const cardIds = await contract.getOwnerCards(userAddress);
+
+        // Для каждого ID получаем данные визитки
         for (let i = 0; i < cardIds.length; i++) {
-          const card = await contract.cards(cardIds[i]);
+          const cardData = await contract.cards(cardIds[i]);
+          // Создаём HTML-элемент для визитки
           const cardElement = document.createElement("div");
           cardElement.className = "card";
           cardElement.innerHTML = `
-            <strong>Name:</strong> ${card.name} <br>
-            <strong>Email:</strong> ${card.email} <br>
-            <strong>Phone:</strong> ${card.phone} <br>
-            <strong>Company:</strong> ${card.company} <br>
-            <strong>Position:</strong> ${card.position} <br>
-            <strong>Created:</strong> ${new Date(card.timestamp * 1000).toLocaleString()} <br>
+            <strong>Имя:</strong> ${cardData.name} <br>
+            <strong>Email:</strong> ${cardData.email} <br>
+            <strong>Телефон:</strong> ${cardData.phone} <br>
+            <strong>Компания:</strong> ${cardData.company} <br>
+            <strong>Должность:</strong> ${cardData.position} <br>
+            <strong>Создана:</strong> ${new Date(cardData.timestamp * 1000).toLocaleString()} <br>
           `;
           cardsDiv.appendChild(cardElement);
         }
       } catch (error) {
-        console.error(error);
+        console.error("Ошибка при загрузке визиток:", error);
       }
     }
 
-    // Initialize the app when the page loads
+    // Запускаем init при загрузке страницы
     window.addEventListener("load", init);
   </script>
 </body>
