@@ -17,14 +17,14 @@
 
   <div class="container">
     <h1>Digital Business Card Exchange</h1>
-    <div>
-      <input type="text" id="name" placeholder="Имя">
-      <input type="email" id="email" placeholder="Email">
-      <input type="text" id="phone" placeholder="Телефон">
-      <input type="text" id="company" placeholder="Компания">
-      <input type="text" id="position" placeholder="Должность">
-      <button onclick="createCard()">Создать визитку</button>
-    </div>
+
+    <h2>Создать визитку</h2>
+    <input type="text" id="name" placeholder="Имя">
+    <input type="email" id="email" placeholder="Email">
+    <input type="text" id="phone" placeholder="Телефон">
+    <input type="text" id="company" placeholder="Компания">
+    <input type="text" id="position" placeholder="Должность">
+    <button onclick="createCard()">Создать</button>
 
     <h2>Ваши визитки</h2>
     <div id="cards"></div>
@@ -38,8 +38,8 @@
   </div>
 
   <script>
-    const contractAddress = "0x6bb8C23ce6DBfc466798794eB9d771d9F70087f1";
-    
+    const contractAddress = "0xF9Ae56D6de8B2B8a377Bf86c3CBeab1Efcf86298";
+
     const contractABI = [
       {
         "inputs": [
@@ -94,11 +94,8 @@
         "type": "function"
       },
       {
-        "inputs": [
-          { "internalType": "address", "name": "_owner", "type": "address" },
-          { "internalType": "address", "name": "_recipient", "type": "address" }
-        ],
-        "name": "getSharedCards",
+        "inputs": [{ "internalType": "address", "name": "_recipient", "type": "address" }],
+        "name": "getReceivedCards",
         "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
         "stateMutability": "view",
         "type": "function"
@@ -120,7 +117,7 @@
       signer = provider.getSigner();
       contract = new ethers.Contract(contractAddress, contractABI, signer);
       await loadCards();
-      await loadSharedCards(); // 🔥 Теперь загружаем полученные визитки!
+      await loadSharedCards();
     }
 
     async function createCard() {
@@ -141,31 +138,31 @@
       document.getElementById("cards").innerHTML = "Загрузка...";
       const userAddress = await signer.getAddress();
       const cardIds = await contract.getOwnerCards(userAddress);
-
-      let cardsHTML = "";
+      let html = "";
       for (let id of cardIds) {
-        const card = await contract.getCard(id);
-        cardsHTML += `<div class="card"><strong>${card.name}</strong><br>${card.email}<br>${card.phone}<br>${card.company} - ${card.position}</div>`;
+        html += `<div class="card">ID: ${id}</div>`;
       }
-      document.getElementById("cards").innerHTML = cardsHTML || "Нет визиток";
+      document.getElementById("cards").innerHTML = html || "Нет визиток";
     }
 
     async function loadSharedCards() {
       document.getElementById("sharedCards").innerHTML = "Загрузка...";
       const userAddress = await signer.getAddress();
-      const senders = await provider.listAccounts(); 
-
-      let sharedHTML = "";
-      for (let sender of senders) {
-        if (sender !== userAddress) {
-          const sharedCardIds = await contract.getSharedCards(sender, userAddress);
-          for (let id of sharedCardIds) {
-            const card = await contract.getCard(id);
-            sharedHTML += `<div class="card"><strong>${card.name}</strong><br>${card.email}<br>${card.phone}<br>${card.company} - ${card.position}</div>`;
-          }
-        }
+      const cardIds = await contract.getReceivedCards(userAddress);
+      let html = "";
+      for (let id of cardIds) {
+        html += `<div class="card">ID: ${id} (получена)</div>`;
       }
-      document.getElementById("sharedCards").innerHTML = sharedHTML || "Нет полученных визиток";
+      document.getElementById("sharedCards").innerHTML = html || "Нет полученных визиток";
+    }
+
+    async function shareCard() {
+      const recipient = document.getElementById("recipient").value;
+      const cardId = prompt("Введите ID визитки:");
+      const tx = await contract.shareCard(cardId, recipient);
+      await tx.wait();
+      alert("Визитка отправлена!");
+      await loadSharedCards();
     }
 
     window.onload = init;
