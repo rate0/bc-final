@@ -53,16 +53,16 @@
       <div id="cards"></div>
     </div>
   </div>
+
+  <!-- 1) Подключаем UMD-версию ethers.js (без "export" / "import") -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.umd/dist/ethers.umd.min.js"></script>
   
-  <!-- Подключаем ethers.js из CDN (обязательно до вашего скрипта) -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
-
-  <!-- Ваш скрипт для взаимодействия с контрактом -->
+  <!-- 2) Ваш код, где вы уже можете использовать ethers -->
   <script>
-    // Вставьте здесь адрес контракта, скопированный после деплоя
-    const contractAddress = "0x5Ce6757BD069FCF97833Ce1340EDbF0f60CB71E8"; // <-- СЮДА ВСТАВЬТЕ АДРЕС
+    // Вставьте реальный адрес вашего контракта
+    const contractAddress = "0x5Ce6757BD069FCF97833Ce1340EDbF0f60CB71E8";
 
-    // ABI (описание функций) должно соответствовать коду контракта
+    // ABI контракта
     const contractABI = [
       "function createCard(string _name, string _email, string _phone, string _company, string _position) public",
       "function getOwnerCards(address _owner) public view returns (uint256[])",
@@ -71,33 +71,31 @@
 
     let provider, signer, contract;
 
-    // Функция инициализации приложения
+    // Инициализация приложения
     async function init() {
-      // Проверяем, установлен ли MetaMask (window.ethereum)
+      // Проверяем, есть ли MetaMask
       if (typeof window.ethereum !== 'undefined') {
         try {
-          // Создаём провайдер на базе MetaMask
           provider = new ethers.providers.Web3Provider(window.ethereum);
-          // Запрашиваем доступ к аккаунтам
+          // Запрашиваем доступ к аккаунту
           await provider.send("eth_requestAccounts", []);
-          // Получаем объект signer для подписания транзакций
           signer = provider.getSigner();
 
-          // Инициализируем контракт
+          // Создаём объект контракта
           contract = new ethers.Contract(contractAddress, contractABI, signer);
 
-          // Загружаем существующие визитки
+          // Загружаем визитки (если функция есть)
           await loadCards();
         } catch (error) {
           console.error("Ошибка при инициализации MetaMask:", error);
           alert("Ошибка при подключении MetaMask. Проверьте консоль.");
         }
       } else {
-        alert("MetaMask не установлен. Установите расширение, чтобы использовать приложение.");
+        alert("MetaMask не установлен. Установите расширение.");
       }
     }
 
-    // Функция для создания новой визитки
+    // Пример функции: создать визитку
     async function createCard() {
       const name = document.getElementById("name").value.trim();
       const email = document.getElementById("email").value.trim();
@@ -111,52 +109,42 @@
       }
 
       try {
-        // Вызываем метод createCard на смарт-контракте
+        // Вызов метода контракта
         const tx = await contract.createCard(name, email, phone, company, position);
-        await tx.wait(); // Ждём подтверждения транзакции
+        await tx.wait();
         alert("Визитка успешно создана!");
-
-        // Очищаем поля формы
+        // Очистка формы и обновление списка визиток
         document.getElementById("name").value = "";
         document.getElementById("email").value = "";
         document.getElementById("phone").value = "";
         document.getElementById("company").value = "";
         document.getElementById("position").value = "";
-
-        // Обновляем список визиток
         await loadCards();
       } catch (error) {
         console.error("Ошибка при создании визитки:", error);
-        alert("Ошибка при создании визитки. Подробности в консоли.");
+        alert("Ошибка при создании визитки. Проверьте консоль.");
       }
     }
 
-    // Функция для загрузки и отображения визиток пользователя
+    // Пример функции: загрузить визитки пользователя
     async function loadCards() {
       const cardsDiv = document.getElementById("cards");
-      cardsDiv.innerHTML = ""; // Очищаем предыдущий вывод
-
+      cardsDiv.innerHTML = "";
       try {
-        // Узнаём адрес кошелька пользователя
         const userAddress = await signer.getAddress();
-        // Получаем список ID визиток, принадлежащих данному адресу
         const cardIds = await contract.getOwnerCards(userAddress);
-
         for (let i = 0; i < cardIds.length; i++) {
           const cardData = await contract.cards(cardIds[i]);
-
-          // Создаём элемент для отображения визитки
           const cardElement = document.createElement("div");
           cardElement.className = "card";
           cardElement.innerHTML = `
-            <strong>Имя:</strong> ${cardData.name} <br>
-            <strong>Email:</strong> ${cardData.email} <br>
-            <strong>Телефон:</strong> ${cardData.phone} <br>
-            <strong>Компания:</strong> ${cardData.company} <br>
-            <strong>Должность:</strong> ${cardData.position} <br>
-            <strong>Создана:</strong> ${new Date(cardData.timestamp * 1000).toLocaleString()} <br>
+            <strong>Имя:</strong> ${cardData.name}<br>
+            <strong>Email:</strong> ${cardData.email}<br>
+            <strong>Телефон:</strong> ${cardData.phone}<br>
+            <strong>Компания:</strong> ${cardData.company}<br>
+            <strong>Должность:</strong> ${cardData.position}<br>
+            <strong>Создана:</strong> ${new Date(cardData.timestamp * 1000).toLocaleString()}<br>
           `;
-
           cardsDiv.appendChild(cardElement);
         }
       } catch (error) {
