@@ -120,6 +120,7 @@
       signer = provider.getSigner();
       contract = new ethers.Contract(contractAddress, contractABI, signer);
       await loadCards();
+      await loadSharedCards(); // 🔥 Теперь загружаем полученные визитки!
     }
 
     async function createCard() {
@@ -144,24 +145,27 @@
       let cardsHTML = "";
       for (let id of cardIds) {
         const card = await contract.getCard(id);
-        cardsHTML += `<div class="card">
-          <strong>${card.name}</strong><br>
-          ${card.email}<br>
-          ${card.phone}<br>
-          ${card.company} - ${card.position}
-        </div>`;
+        cardsHTML += `<div class="card"><strong>${card.name}</strong><br>${card.email}<br>${card.phone}<br>${card.company} - ${card.position}</div>`;
       }
       document.getElementById("cards").innerHTML = cardsHTML || "Нет визиток";
     }
 
-    async function shareCard() {
-      const recipient = document.getElementById("recipient").value;
-      const cardId = prompt("Введите ID визитки для отправки:");
+    async function loadSharedCards() {
+      document.getElementById("sharedCards").innerHTML = "Загрузка...";
+      const userAddress = await signer.getAddress();
+      const senders = await provider.listAccounts(); 
 
-      const tx = await contract.shareCard(cardId, recipient);
-      await tx.wait();
-
-      alert("Визитка отправлена!");
+      let sharedHTML = "";
+      for (let sender of senders) {
+        if (sender !== userAddress) {
+          const sharedCardIds = await contract.getSharedCards(sender, userAddress);
+          for (let id of sharedCardIds) {
+            const card = await contract.getCard(id);
+            sharedHTML += `<div class="card"><strong>${card.name}</strong><br>${card.email}<br>${card.phone}<br>${card.company} - ${card.position}</div>`;
+          }
+        }
+      }
+      document.getElementById("sharedCards").innerHTML = sharedHTML || "Нет полученных визиток";
     }
 
     window.onload = init;
