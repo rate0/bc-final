@@ -54,13 +54,15 @@
     </div>
   </div>
   
-  <!-- Подключаем ethers.js из CDN -->
+  <!-- Подключаем ethers.js из CDN (обязательно до вашего скрипта) -->
   <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
-  <script>
-    // Укажите здесь реальный адрес вашего контракта, взятый с Etherscan (Sepolia)
-    const contractAddress = "0xc44fd279751c3c52ca49126690e22d6d6879a969";
 
-    // ABI (описание функций контракта)
+  <!-- Ваш скрипт для взаимодействия с контрактом -->
+  <script>
+    // Вставьте здесь адрес контракта, скопированный после деплоя
+    const contractAddress = "0x5Ce6757BD069FCF97833Ce1340EDbF0f60CB71E8"; // <-- СЮДА ВСТАВЬТЕ АДРЕС
+
+    // ABI (описание функций) должно соответствовать коду контракта
     const contractABI = [
       "function createCard(string _name, string _email, string _phone, string _company, string _position) public",
       "function getOwnerCards(address _owner) public view returns (uint256[])",
@@ -69,25 +71,25 @@
 
     let provider, signer, contract;
 
-    // Инициализация приложения при загрузке страницы
+    // Функция инициализации приложения
     async function init() {
       // Проверяем, установлен ли MetaMask (window.ethereum)
       if (typeof window.ethereum !== 'undefined') {
         try {
           // Создаём провайдер на базе MetaMask
           provider = new ethers.providers.Web3Provider(window.ethereum);
-          // Запрашиваем доступ к аккаунтам пользователя
+          // Запрашиваем доступ к аккаунтам
           await provider.send("eth_requestAccounts", []);
-          // Получаем «signer» (подписант), чтобы отправлять транзакции
+          // Получаем объект signer для подписания транзакций
           signer = provider.getSigner();
 
           // Инициализируем контракт
           contract = new ethers.Contract(contractAddress, contractABI, signer);
 
-          // Загружаем визитки пользователя
+          // Загружаем существующие визитки
           await loadCards();
         } catch (error) {
-          console.error("Ошибка при инициализации:", error);
+          console.error("Ошибка при инициализации MetaMask:", error);
           alert("Ошибка при подключении MetaMask. Проверьте консоль.");
         }
       } else {
@@ -103,14 +105,13 @@
       const company = document.getElementById("company").value.trim();
       const position = document.getElementById("position").value.trim();
 
-      // Проверяем, заполнены ли поля
       if (!name || !email || !phone || !company || !position) {
         alert("Пожалуйста, заполните все поля.");
         return;
       }
 
       try {
-        // Вызываем метод контракта createCard
+        // Вызываем метод createCard на смарт-контракте
         const tx = await contract.createCard(name, email, phone, company, position);
         await tx.wait(); // Ждём подтверждения транзакции
         alert("Визитка успешно создана!");
@@ -126,24 +127,25 @@
         await loadCards();
       } catch (error) {
         console.error("Ошибка при создании визитки:", error);
-        alert("Ошибка при создании визитки. Подробности в консоли браузера.");
+        alert("Ошибка при создании визитки. Подробности в консоли.");
       }
     }
 
-    // Функция для загрузки и отображения визиток
+    // Функция для загрузки и отображения визиток пользователя
     async function loadCards() {
       const cardsDiv = document.getElementById("cards");
-      cardsDiv.innerHTML = ""; // Очищаем предыдущие записи
+      cardsDiv.innerHTML = ""; // Очищаем предыдущий вывод
 
       try {
+        // Узнаём адрес кошелька пользователя
         const userAddress = await signer.getAddress();
-        // Получаем список ID визиток, принадлежащих пользователю
+        // Получаем список ID визиток, принадлежащих данному адресу
         const cardIds = await contract.getOwnerCards(userAddress);
 
-        // Для каждого ID получаем данные визитки
         for (let i = 0; i < cardIds.length; i++) {
           const cardData = await contract.cards(cardIds[i]);
-          // Создаём HTML-элемент для визитки
+
+          // Создаём элемент для отображения визитки
           const cardElement = document.createElement("div");
           cardElement.className = "card";
           cardElement.innerHTML = `
@@ -154,6 +156,7 @@
             <strong>Должность:</strong> ${cardData.position} <br>
             <strong>Создана:</strong> ${new Date(cardData.timestamp * 1000).toLocaleString()} <br>
           `;
+
           cardsDiv.appendChild(cardElement);
         }
       } catch (error) {
