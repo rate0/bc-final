@@ -5,134 +5,167 @@
   <title>Digital Business Card Exchange</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      margin: 0;
-      padding: 20px;
-      text-align: center;
-    }
-    .container {
-      max-width: 600px;
-      margin: auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-    }
-    h1 {
-      color: #333;
-    }
-    input, button {
-      width: 100%;
-      padding: 10px;
-      margin: 5px 0;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-    }
-    button {
-      background: #28a745;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #218838;
-    }
-    .card {
-      background: #f1f1f1;
-      padding: 10px;
-      border-radius: 5px;
-      margin: 5px 0;
-    }
-    .loader {
-      display: none;
-      margin: 10px auto;
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #3498db;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+    body { font-family: Arial, sans-serif; background: #f9f9f9; text-align: center; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    input, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; }
+    button { background: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .card { background: #f1f1f1; padding: 10px; border-radius: 5px; margin: 5px 0; }
   </style>
 </head>
 <body>
 
   <div class="container">
     <h1>Digital Business Card Exchange</h1>
-
     <div>
-      <input type="text" id="name" placeholder="Имя" required>
-      <input type="email" id="email" placeholder="Email" required>
-      <input type="text" id="phone" placeholder="Телефон" required>
-      <input type="text" id="company" placeholder="Компания" required>
-      <input type="text" id="position" placeholder="Должность" required>
+      <input type="text" id="name" placeholder="Имя">
+      <input type="email" id="email" placeholder="Email">
+      <input type="text" id="phone" placeholder="Телефон">
+      <input type="text" id="company" placeholder="Компания">
+      <input type="text" id="position" placeholder="Должность">
       <button onclick="createCard()">Создать визитку</button>
-      <div class="loader" id="loader"></div>
     </div>
 
     <h2>Ваши визитки</h2>
     <div id="cards"></div>
+
+    <h2>Поделиться визиткой</h2>
+    <input type="text" id="recipient" placeholder="Адрес получателя">
+    <button onclick="shareCard()">Поделиться</button>
+
+    <h2>Визитки, которыми поделились с вами</h2>
+    <div id="sharedCards"></div>
   </div>
 
   <script>
-    const contractAddress = "0x7ce29bB5C3AeE2D42966Afc9a952C29c1C1A03f8"; 
+    const contractAddress = "0x6bb8C23ce6DBfc466798794eB9d771d9F70087f1";
+    
     const contractABI = [
-      "function createCard(string _name, string _email, string _phone, string _company, string _position) public",
-      "function getOwnerCards(address _owner) public view returns (uint256[])",
-      "function getCard(uint256) public view returns (tuple(string, string, string, string, string, address, uint256))"
+      {
+        "inputs": [
+          { "internalType": "string", "name": "_name", "type": "string" },
+          { "internalType": "string", "name": "_email", "type": "string" },
+          { "internalType": "string", "name": "_phone", "type": "string" },
+          { "internalType": "string", "name": "_company", "type": "string" },
+          { "internalType": "string", "name": "_position", "type": "string" }
+        ],
+        "name": "createCard",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "_cardId", "type": "uint256" }],
+        "name": "getCard",
+        "outputs": [
+          {
+            "components": [
+              { "internalType": "string", "name": "name", "type": "string" },
+              { "internalType": "string", "name": "email", "type": "string" },
+              { "internalType": "string", "name": "phone", "type": "string" },
+              { "internalType": "string", "name": "company", "type": "string" },
+              { "internalType": "string", "name": "position", "type": "string" },
+              { "internalType": "address", "name": "owner", "type": "address" },
+              { "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+            ],
+            "internalType": "struct DigitalBusinessCardExchange.BusinessCard",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "_owner", "type": "address" }],
+        "name": "getOwnerCards",
+        "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "_cardId", "type": "uint256" },
+          { "internalType": "address", "name": "_recipient", "type": "address" }
+        ],
+        "name": "shareCard",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "address", "name": "_owner", "type": "address" },
+          { "internalType": "address", "name": "_recipient", "type": "address" }
+        ],
+        "name": "getSharedCards",
+        "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "totalCards",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      }
     ];
 
     let provider, signer, contract;
 
     async function init() {
-      if (typeof window.ethereum !== "undefined") {
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        signer = provider.getSigner();
-        contract = new ethers.Contract(contractAddress, contractABI, signer);
-        await loadCards();
-      } else {
-        alert("MetaMask не установлен!");
-      }
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      contract = new ethers.Contract(contractAddress, contractABI, signer);
+      await loadCards();
     }
 
     async function createCard() {
-      document.getElementById("loader").style.display = "block";
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const phone = document.getElementById("phone").value;
+      const company = document.getElementById("company").value;
+      const position = document.getElementById("position").value;
 
-      const name = document.getElementById("name").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-      const company = document.getElementById("company").value.trim();
-      const position = document.getElementById("position").value.trim();
+      const tx = await contract.createCard(name, email, phone, company, position);
+      await tx.wait();
 
-      try {
-        const tx = await contract.createCard(name, email, phone, company, position);
-        await tx.wait();
-        alert("Визитка создана!");
-        await loadCards();
-      } catch (error) {
-        alert("Ошибка: " + error.message);
-      }
-      document.getElementById("loader").style.display = "none";
+      alert("Визитка создана!");
+      await loadCards();
     }
 
     async function loadCards() {
-      document.getElementById("cards").innerHTML = "";
+      document.getElementById("cards").innerHTML = "Загрузка...";
       const userAddress = await signer.getAddress();
       const cardIds = await contract.getOwnerCards(userAddress);
+
+      let cardsHTML = "";
       for (let id of cardIds) {
-        const [name, email, phone, company, position] = await contract.getCard(id);
-        document.getElementById("cards").innerHTML += `<div class="card"><b>${name}</b> | ${email} | ${company}</div>`;
+        const card = await contract.getCard(id);
+        cardsHTML += `<div class="card">
+          <strong>${card.name}</strong><br>
+          ${card.email}<br>
+          ${card.phone}<br>
+          ${card.company} - ${card.position}
+        </div>`;
       }
+      document.getElementById("cards").innerHTML = cardsHTML || "Нет визиток";
+    }
+
+    async function shareCard() {
+      const recipient = document.getElementById("recipient").value;
+      const cardId = prompt("Введите ID визитки для отправки:");
+
+      const tx = await contract.shareCard(cardId, recipient);
+      await tx.wait();
+
+      alert("Визитка отправлена!");
     }
 
     window.onload = init;
   </script>
+
 </body>
 </html>
