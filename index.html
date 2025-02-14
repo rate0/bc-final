@@ -10,7 +10,7 @@
     input, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; }
     button { background: #007bff; color: white; border: none; cursor: pointer; }
     button:hover { background: #0056b3; }
-    .card { background: #f1f1f1; padding: 10px; border-radius: 5px; margin: 5px 0; }
+    .card { background: #f1f1f1; padding: 10px; border-radius: 5px; margin: 5px 0; text-align: left; }
   </style>
 </head>
 <body>
@@ -99,13 +99,6 @@
         "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
         "stateMutability": "view",
         "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "totalCards",
-        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-        "stateMutability": "view",
-        "type": "function"
       }
     ];
 
@@ -120,6 +113,44 @@
       await loadSharedCards();
     }
 
+    async function loadCards() {
+      document.getElementById("cards").innerHTML = "Загрузка...";
+      const userAddress = await signer.getAddress();
+      const cardIds = await contract.getOwnerCards(userAddress);
+      let html = "";
+      for (let id of cardIds) {
+        const card = await contract.getCard(id);
+        html += `<div class="card">
+          <strong>${card.name}</strong><br>
+          Email: ${card.email}<br>
+          Телефон: ${card.phone}<br>
+          Компания: ${card.company}<br>
+          Должность: ${card.position}<br>
+          <small>ID: ${id}</small>
+        </div>`;
+      }
+      document.getElementById("cards").innerHTML = html || "Нет визиток";
+    }
+
+    async function loadSharedCards() {
+      document.getElementById("sharedCards").innerHTML = "Загрузка...";
+      const userAddress = await signer.getAddress();
+      const cardIds = await contract.getReceivedCards(userAddress);
+      let html = "";
+      for (let id of cardIds) {
+        const card = await contract.getCard(id);
+        html += `<div class="card">
+          <strong>${card.name}</strong> (получена)<br>
+          Email: ${card.email}<br>
+          Телефон: ${card.phone}<br>
+          Компания: ${card.company}<br>
+          Должность: ${card.position}<br>
+          <small>ID: ${id}</small>
+        </div>`;
+      }
+      document.getElementById("sharedCards").innerHTML = html || "Нет полученных визиток";
+    }
+
     async function createCard() {
       const name = document.getElementById("name").value;
       const email = document.getElementById("email").value;
@@ -132,28 +163,6 @@
 
       alert("Визитка создана!");
       await loadCards();
-    }
-
-    async function loadCards() {
-      document.getElementById("cards").innerHTML = "Загрузка...";
-      const userAddress = await signer.getAddress();
-      const cardIds = await contract.getOwnerCards(userAddress);
-      let html = "";
-      for (let id of cardIds) {
-        html += `<div class="card">ID: ${id}</div>`;
-      }
-      document.getElementById("cards").innerHTML = html || "Нет визиток";
-    }
-
-    async function loadSharedCards() {
-      document.getElementById("sharedCards").innerHTML = "Загрузка...";
-      const userAddress = await signer.getAddress();
-      const cardIds = await contract.getReceivedCards(userAddress);
-      let html = "";
-      for (let id of cardIds) {
-        html += `<div class="card">ID: ${id} (получена)</div>`;
-      }
-      document.getElementById("sharedCards").innerHTML = html || "Нет полученных визиток";
     }
 
     async function shareCard() {
